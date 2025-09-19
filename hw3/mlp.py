@@ -72,10 +72,12 @@ def featurize(sentence: str, embeddings: gensim.models.keyedvectors.KeyedVectors
     # None - if the vector sequence is empty, i.e. the sentence is empty or None of the words in the sentence is in the embedding vocabulary
     # A torch tensor of shape (embed_dim,) - the average word embedding of the sentence
     # Hint: follow the hints in the pdf description
-    if len(vectors) == 0:
+    if vectors:
+        arr = np.array(vectors, dtype=np.float32)
+        avg = arr.mean(axis=0)
+        return torch.from_numpy(avg)
+    else: 
         return None
-    else:
-        return torch.from_numpy(np.mean(vectors, axis=0))
 
 
 def create_tensor_dataset(raw_data: Dict[str, List[Union[int, str]]],
@@ -85,9 +87,9 @@ def create_tensor_dataset(raw_data: Dict[str, List[Union[int, str]]],
 
         # TODO (Copy from your HW1): complete the for loop to featurize each sentence
         # only add the feature and label to the list if the feature is not None
-        feature = featurize(text, embeddings)
-        if feature is not None:
-            all_features.append(feature)
+        featurized_text = featurize(text, embeddings)
+        if featurized_text is not None:
+            all_features.append(featurized_text)
             all_labels.append(label)
         # your code ends here
 
@@ -113,13 +115,24 @@ Defining our First PyTorch Model
 
 
 class SentimentClassifier(nn.Module):
-    def __init__(self, embed_dim: int, num_classes: int, hidden_dims: List[int]):
+    def __init__(self, embed_dim: int, num_classes: int, hidden_dims: List[int], activation_function: str = 'sigmoid'):
         super().__init__()
         self.embed_dim = embed_dim
         self.num_classes = num_classes
 
         # activation function
-        self.activation = nn.Sigmoid()
+        match activation_function:
+            case 'sigmoid':
+                self.activation = nn.Sigmoid()
+            case 'tanh':
+                self.activation = nn.Tanh()
+            case 'relu':
+                self.activation = nn.ReLU()
+            case 'leakyrelu':
+                self.activation = nn.LeakyReLU()
+            case _:
+                print('activation_function must be one of ["sigmoid", "tanh", "relu", "leakyrelu"]')
+                return
 
         # linear layers for the MLP
         self.linears = nn.ModuleList()
@@ -167,7 +180,9 @@ def accuracy(logits: torch.FloatTensor, labels: torch.LongTensor) -> torch.Float
     # labels is a tensor of shape (batch_size,)
     # logits is a tensor of shape (batch_size, num_classes)
     preds = torch.argmax(logits, dim=1)
-    return (preds == labels).float()
+
+    acc = (preds == labels).float()
+    return acc
 
 
 def evaluate(model: SentimentClassifier, eval_dataloader: DataLoader) -> Tuple[float, float]:
@@ -283,7 +298,7 @@ def run_mlp(config: easydict.EasyDict,
     test_dataloader = create_dataloader(test_dataset, config.batch_size, shuffle=False)
 
     print(f"{'-' * 10} Load Model {'-' * 10}")
-    model = SentimentClassifier(embeddings.vector_size, config.num_classes, config.hidden_dims)
+    model = SentimentClassifier(embeddings.vector_size, config.num_classes, config.hidden_dims, config.activation_function)
     # define optimizer that manages the model's parameters and gradient updates
     # we will learn more about optimizers in future lectures and homework
     optimizer = torch.optim.Adam(model.parameters(), lr=config.lr)

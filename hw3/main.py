@@ -65,6 +65,7 @@ def explore_mlp_structures(dev_d: Dict[str, List[Union[str, int]]],
             'save_path': f'model_hidden_{hidden_dim_names}.pth',  # path where to save the model
             'embeddings': EMBEDDING_TYPES[0],
             'num_classes': 2,
+            'activation_function': 'sigmoid',
         })
 
         epoch_train_losses, _, epoch_dev_loss, epoch_dev_accs, _, _ = run_mlp(train_config, embeddings, dev_d, train_d,
@@ -77,6 +78,64 @@ def explore_mlp_structures(dev_d: Dict[str, List[Union[str, int]]],
     visualize_configs(all_emb_epoch_dev_losses, HIDDEN_DIMS_NAMES, "Loss", "./all_mlp_loss.png")
 
 
+def explore_mlp_activations(dev_d: Dict[str, List[Union[str, int]]],
+                            train_d: Dict[str, List[Union[str, int]]],
+                            test_d: Dict[str, List[Union[str, int]]]):
+    all_emb_epoch_dev_accs, all_emb_epoch_dev_losses = [], []
+
+    print(f"{'-' * 10} Load Pre-trained Embeddings: {EMBEDDING_TYPES[0]} {'-' * 10}")
+    embeddings = gensim.downloader.load(EMBEDDING_TYPES[0])
+
+    for activation_function in ["sigmoid", "tanh", "relu", "leakyrelu"]:
+        train_config = EasyDict({
+            'batch_size': 64,  # we use batching for
+            'lr': 0.02,  # if embedding_type != "None" else 0.01,  # learning rate
+            'num_epochs': 20,  # the total number of times all the training data is iterated over
+            'hidden_dims': [512],
+            'save_path': f'model_{activation_function}.pth',  # path where to save the model
+            'embeddings': EMBEDDING_TYPES[0],
+            'num_classes': 2,
+            'activation_function': activation_function,
+        })
+
+        epoch_train_losses, _, epoch_dev_loss, epoch_dev_accs, _, _ = run_mlp(train_config, embeddings, dev_d, train_d,
+                                                                              test_d)
+        all_emb_epoch_dev_accs.append(epoch_dev_accs)
+        all_emb_epoch_dev_losses.append(epoch_dev_loss)
+
+    visualize_configs(all_emb_epoch_dev_accs, ["sigmoid", "tanh", "relu", "leakyrelu"], "Accuracy", "./mlp_activation_acc.png")
+    visualize_configs(all_emb_epoch_dev_losses, ["sigmoid", "tanh", "relu", "leakyrelu"], "Loss", "./mlp_activation_loss.png")
+
+
+def explore_mlp_learning_rates(dev_d: Dict[str, List[Union[str, int]]],
+                                train_d: Dict[str, List[Union[str, int]]],
+                                test_d: Dict[str, List[Union[str, int]]]):
+    all_emb_epoch_dev_accs, all_emb_epoch_dev_losses = [], []
+
+    print(f"{'-' * 10} Load Pre-trained Embeddings: {EMBEDDING_TYPES[0]} {'-' * 10}")
+    embeddings = gensim.downloader.load(EMBEDDING_TYPES[0])
+
+    for learning_rates in [0.1, 0.025, 0.02, 0.01, 0.001, 0.0005]:
+        train_config = EasyDict({
+            'batch_size': 64,  # we use batching for
+            'lr': learning_rates,  # if embedding_type != "None" else 0.01,  # learning rate
+            'num_epochs': 20,  # the total number of times all the training data is iterated over
+            'hidden_dims': [512],
+            'save_path': f'model_{learning_rates}.pth',  # path where to save the model
+            'embeddings': EMBEDDING_TYPES[0],
+            'num_classes': 2,
+            'activation_function': 'relu',
+        })
+
+        epoch_train_losses, _, epoch_dev_loss, epoch_dev_accs, _, _ = run_mlp(train_config, embeddings, dev_d, train_d,
+                                                                              test_d)
+        all_emb_epoch_dev_accs.append(epoch_dev_accs)
+        all_emb_epoch_dev_losses.append(epoch_dev_loss)
+
+    visualize_configs(all_emb_epoch_dev_accs, [0.1, 0.025, 0.02, 0.01, 0.001, 0.0005], "Accuracy", "./mlp_lr_acc.png")
+    visualize_configs(all_emb_epoch_dev_losses, [0.1, 0.025, 0.02, 0.01, 0.001, 0.0005], "Loss", "./mlp_lr_loss.png")
+
+
 if __name__ == '__main__':
     # Load raw data for mlp
     # uncomment the following line to run
@@ -84,7 +143,15 @@ if __name__ == '__main__':
 
     # Explore different hidden dimensions
     # uncomment the following line to run
-    explore_mlp_structures(dev_data, train_data, test_data)
+    # explore_mlp_structures(dev_data, train_data, test_data)
+
+    # Explore different activation functions
+    # uncomment the following line to run
+    # explore_mlp_activations(dev_data, train_data, test_data)
+
+    # Explore different activation functions
+    # uncomment the following line to run
+    explore_mlp_learning_rates(dev_data, train_data, test_data)
 
     # load raw data for lm
     # uncomment the following line to run
